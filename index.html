@@ -194,19 +194,70 @@ footer {
     margin-top: 10px;
 }
 
-@media(max-width:600px) {
-    header h1 { font-size: 25px; }
-    .hero h2 { font-size: 27px; }
+@media (max-width:600px) {
+
+    html, body {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    header h1 {
+        font-size: 25px;
+    }
+
+    .hero {
+        padding: 55px 15px;
+    }
+
+    .hero h2 {
+        font-size: 27px;
+    }
+
+    .hero p {
+        font-size: 16px;
+    }
+
+    nav {
+        padding: 10px 5px;
+    }
+
     nav a {
         display: inline-block;
         margin: 7px;
         font-size: 14px;
     }
-    html, body {
-    width: 100%;
-    max-width: 100%;
-    overflow-x: hidden; 
+
+    section {
+        padding: 35px 12px;
     }
+
+    section h2 {
+        font-size: 24px;
+    }
+
+    .services {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .gallery {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .design img {
+        height: 160px;
+    }
+
+    .design h3 {
+        font-size: 15px;
+    }
+
+    .order-box {
+        padding: 20px 12px;
+    }
+
 }
 </style>
 </head>
