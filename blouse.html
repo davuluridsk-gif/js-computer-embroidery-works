@@ -3,172 +3,105 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+<title>Blouse Designs - JS Embroidery</title>
 <style>
 body {
-    font-family: Arial, sans-serif;
-    margin: 20px;
-    text-align: center;
+  font-family: Arial, sans-serif;
+  margin: 12px;
+  text-align: center;
+}
+#designs {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  max-width: 900px;
+  margin: auto;
 }
 .design {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-    align-items: flex-start;
-border: 1px solid purple;
-padding: 6px;
-margin-bottom: 10px;
-border-radius: 12px}
-.design-item {
-    width: 50%;
+  display: flex;
+  gap: 8px;
+  border: 1px solid purple;
+  padding: 6px;
+  border-radius: 12px;
+  align-items: flex-start;
 }
-.design-item img {
-    width: 100%;
-    height: AUTO;
-
-    
-    object-fit: contain;
+.design img {
+  width: 50%;
+  height: auto;
+  object-fit: contain;
+}
+@media (min-width: 600px) {
+  #designs {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 </style>
 </head>
 <body>
 
+<h2>Blouse Designs</h2>
+<div id="designs">Loading designs...</div>
 
+<script>
+const api =
+"https://api.github.com/repos/davuluridsk-gif/js-computer-embroidery-works/contents/designs";
 
-<div class="design">
-    <div class="design-item">
-        <img src="images/bh286 back neck.jpeg">
-        
-    </div>
+async function loadDesigns() {
+  const container = document.getElementById("designs");
 
-    <div class="design-item">
- <img src="images/bh286 hand.jpeg">
+  try {
+    const response = await fetch(api);
+    if (!response.ok) throw new Error("Designs folder not found");
 
-</div>
-</div>
+    const files = await response.json();
+    const images = files.filter(file =>
+      file.type === "file" &&
+      /\.(jpg|jpeg|png|webp)$/i.test(file.name)
+    );
 
+    const pairs = {};
 
-<div class="design">
-    <div class="design-item">
-        <img src="images/hb2402 back neck.jpeg">
-        
-    </div>
+    images.forEach(file => {
+      const match = file.name.match(/^(.*)-(back-neck|hand)\.(jpg|jpeg|png|webp)$/i);
+      if (!match) return;
 
-    <div class="design-item">
-    <img src="images/hb2402 hand.jpeg">
-        
-    </div>
-</div>
-<div class="design">
-    <div class="design-item">
-        <img src="images/hb2527 back neck.jpeg">
-    </div>
-    <div class="design-item">
-        <img src="images/hb2527 hand.jpeg">
-    </div>
-</div>
+      const id = match[1].toLowerCase();
+      const side = match[2].toLowerCase();
 
-<div class="design">
-    <div class="design-item">
-        <img src="images/hb2491 back neck.jpg">
-    </div>
-    <div class="design-item">
-        <img src="images/hb2491 hand.jpg">
-    </div>
-</div>
-<div class="design">
-    <div class="design-item">
-        <img src="hb387 neck.jpeg">
-    </div>
-    <div class="design-item">
-        <img src="hb387 hand.jpeg">
-    </div>
-</div><!-- BH485 -->
-<div class="design">
-    <div class="design-item">
-        <img src="bh485 neck.jpeg">
-    </div>
-    <div class="design-item">
-        <img src="bh485 hand.jpeg">
-    </div>
-</div>
+      if (!pairs[id]) pairs[id] = {};
+      pairs[id][side] = file.download_url;
+    });
 
-<!-- HB2236 -->
-<div class="design">
-    <div class="design-item">
-        <img src="hb2236 back neck.jpeg">
-    </div>
-    <div class="design-item">
-        <img src="hb2236 hand.jpeg">
-    </div>
-</div>
+    container.innerHTML = "";
 
-<!-- HB2302 -->
-<div class="design">
-    <div class="design-item">
-        <img src="hb2302 neck.jpeg">
-    </div>
-    <div class="design-item">
-        <img src="hb2302 hand.jpeg">
-    </div>
-</div>
+    Object.keys(pairs).sort().forEach(id => {
+      const pair = pairs[id];
+      if (!pair["back-neck"] || !pair.hand) return;
 
-<!-- HB2399 -->
-<div class="design">
-    <div class="design-item">
-        <img src="hb2399 back neck.jpeg">
-    </div>
-    <div class="design-item">
-        <img src="hb2399 hand.jpeg">
-    </div>
-</div>
+      const card = document.createElement("div");
+      card.className = "design";
 
-<!-- HB2457 -->
-<div class="design">
-    <div class="design-item">
-        <img src="hb2457 back neck.jpeg">
-    </div>
-    <div class="design-item">
-        <img src="hb2457 hand.jpeg">
-    </div>
-</div>
+      ["back-neck", "hand"].forEach(side => {
+        const img = document.createElement("img");
+        img.src = pair[side];
+        img.alt = "";
+        card.appendChild(img);
+      });
 
-<!-- HB2468 -->
-<div class="design">
-    <div class="design-item">
-        <img src="hb2468 back neck.jpeg">
-    </div>
-    <div class="design-item">
-        <img src="hb2468 hand.jpeg">
-    </div>
-</div>
+      container.appendChild(card);
+    });
 
-<!-- JC5288 -->
-<div class="design">
-    <div class="design-item">
-        <img src="images/jc5288 back neck.jpeg">
-    </div>
-    <div class="design-item">
-        <img src="images/jc5288 hand.jpeg">
-    </div>
-</div>
+    if (!container.children.length) {
+      container.textContent = "No complete designs uploaded yet.";
+    }
+  } catch (error) {
+    container.textContent =
+      "Designs are not available yet. Please check the designs folder.";
+  }
+}
 
-<!-- JC5289 -->
-<div class="design">
-    <div class="design-item">
-        <img src="images/jc5289 neck.jpeg">
-    </div>
-    <div class="design-item">
-        <img src="images/jc5289 hand.jpeg">
-    </div>
-</div>
+loadDesigns();
+</script>
 
-<!-- SVC7055 -->
-<div class="design">
-    <div class="design-item">
-        <img src="images/svc 7055 back neck.jpeg">
-    </div>
-    <div class="design-item">
-        <img src="images/svc 7055 hand.jpeg">
-    </div>
-</div>
+</body>
+</html>
