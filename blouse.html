@@ -2,161 +2,158 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Blouse Designs - JS Embroidery</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blouse Designs</title>
 
 <style>
 body {
-  font-family: Arial, sans-serif;
-  margin: 12px;
-  text-align: center;
-}
-
-h2 {
-  margin-bottom: 18px;
-}
-
-#designs {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  max-width: 950px;
-  margin: auto;
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    text-align: center;
 }
 
 .design {
-  display: flex;
-  gap: 8px;
-  border: 1px solid purple;
-  padding: 6px;
-  border-radius: 12px;
-  align-items: flex-start;
-  min-width: 0;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    align-items: flex-start;
+    border: 1px solid purple;
+    padding: 6px;
+    margin: 0 auto 10px;
+    border-radius: 12px;
+    max-width: 700px;
 }
 
-.design img {
-  width: calc(50% - 4px);
-  height: auto;
-  object-fit: contain;
-  display: block;
+.design-item {
+    width: 50%;
+    min-width: 0;
 }
 
-.message {
-  padding: 20px;
-  color: #555;
-}
-
-@media (min-width: 600px) {
-  #designs {
-    grid-template-columns: repeat(2, 1fr);
-  }
+.design-item img {
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
 }
 </style>
 </head>
 
 <body>
 
-<h2>Blouse Designs</h2>
-<div id="designs">Loading designs...</div>
-
 <script>
-const baseAPI =
-"https://api.github.com/repos/davuluridsk-gif/js-computer-embroidery-works/contents/designs";
+(async function loadDesigns() {
 
-function getImageType(filename) {
-  if (!/\.(jpg|jpeg|png|webp)$/i.test(filename)) {
-    return null;
-  }
+    const owner = "davuluridsk-gif";
+    const repo = "js-computer-embroidery-works";
+    const folder = "designs";
 
-  const name = filename
-    .replace(/\.(jpg|jpeg|png|webp)$/i, "")
-    .trim()
-    .toLowerCase()
-    .replace(/[-_]+/g, " ")
-    .replace(/\s+/g, " ");
+    const api =
+    https://api.github.com/repos/${owner}/${repo};
 
-  if (name === "back neck" || name === "neck") {
-    return "neck";
-  }
+    const isImage = name =>
+    /\.(jpe?g|png|webp)$/i.test(name);
 
-  if (name === "hand") {
-    return "hand";
-  }
+    try {
 
-  return null;
-}
+        const response = await fetch(
+            ${api}/commits?path=${folder}&per_page=100
+        );
 
-async function loadDesigns() {
-  const container = document.getElementById("designs");
+        if (!response.ok) {
+            throw new Error("GitHub history unavailable");
+        }
 
-  try {
-    const response = await fetch(baseAPI);
+        const commits = await response.json();
+        const uploaded = [];
 
-    if (!response.ok) {
-      throw new Error("Unable to load designs folder");
+        for (const commit of commits) {
+
+            const detailResponse = await fetch(
+                ${api}/commits/${commit.sha}
+            );
+
+            if (!detailResponse.ok) continue;
+
+            const detail = await detailResponse.json();
+
+            const date =
+                detail.commit?.committer?.date ||
+                detail.commit?.author?.date;
+
+            if (!date) continue;
+
+            (detail.files || []).forEach((file, index) => {
+
+                const name =
+                    file.filename.split("/").pop();
+
+                if (
+                    file.status === "added" &&
+                    file.filename.startsWith(folder + "/") &&
+                    isImage(name)
+                ) {
+                    uploaded.push({
+                        path: file.filename,
+                        time: new Date(date).getTime(),
+                        index: index
+                    });
+                }
+
+            });
+        }
+
+        const seen = new Set();
+
+        const ordered = uploaded
+            .sort((a, b) =>
+                a.time - b.time || a.index - b.index
+            )
+            .filter(item => {
+
+                if (seen.has(item.path)) return false;
+
+                seen.add(item.path);
+                return true;
+
+            });
+
+        for (
+            let i = 0;
+            i + 1 < ordered.length;
+            i += 2
+        ) {
+
+            const box = document.createElement("div");
+            box.className = "design";
+
+            for (let j = 0; j < 2; j++) {
+
+                const item = document.createElement("div");
+                item.className = "design-item";
+
+                const img = document.createElement("img");
+
+                img.src =
+                https://raw.githubusercontent.com/${owner}/${repo}/main/${ordered[i + j].path.split("/").map(encodeURIComponent).join("/")};
+
+                img.alt = "";
+
+                item.appendChild(img);
+                box.appendChild(item);
+
+            }
+
+            document.body.appendChild(box);
+
+        }
+
+    } catch (error) {
+
+        console.error("Could not load designs:", error);
+
     }
 
-    const items = await response.json();
-
-    const folders = items.filter(item => item.type === "dir");
-
-    const results = await Promise.all(
-      folders.map(async folder => {
-        const folderAPI =
-          baseAPI + "/" + encodeURIComponent(folder.name);
-
-        const folderResponse = await fetch(folderAPI);
-
-        if (!folderResponse.ok) return null;
-
-        const files = await folderResponse.json();
-        const pair = {};
-
-        files.forEach(file => {
-          if (file.type !== "file") return;
-
-          const type = getImageType(file.name);
-
-          if (type && file.download_url) {
-            pair[type] = file.download_url;
-          }
-        });
-
-        if (!pair.neck || !pair.hand) return null;
-
-        return pair;
-      })
-    );
-
-    container.innerHTML = "";
-
-    results.filter(Boolean).forEach(pair => {
-      const card = document.createElement("div");
-      card.className = "design";
-
-      [pair.neck, pair.hand].forEach(url => {
-        const img = document.createElement("img");
-        img.src = url;
-        img.alt = "";
-        img.loading = "lazy";
-        card.appendChild(img);
-      });
-
-      container.appendChild(card);
-    });
-
-    if (!container.children.length) {
-      container.innerHTML =
-        '<div class="message">No complete designs uploaded yet.</div>';
-    }
-
-  } catch (error) {
-    container.innerHTML =
-      '<div class="message">Unable to load designs. Please try again later.</div>';
-  }
-}
-
-loadDesigns();
+})();
 </script>
 
 </body>
