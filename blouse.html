@@ -4,14 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Blouse Designs</title>
-
 <style>
 body {
     font-family: Arial, sans-serif;
     margin: 20px;
     text-align: center;
 }
-
 .design {
     display: flex;
     gap: 8px;
@@ -23,12 +21,10 @@ body {
     border-radius: 12px;
     max-width: 700px;
 }
-
 .design-item {
     width: 50%;
     min-width: 0;
 }
-
 .design-item img {
     display: block;
     width: 100%;
@@ -37,122 +33,103 @@ body {
 }
 </style>
 </head>
-
 <body>
 
 <script>
-(async function loadDesigns() {
-
+(async function loadNewDesigns() {
     const owner = "davuluridsk-gif";
     const repo = "js-computer-embroidery-works";
     const folder = "designs";
-
-    const api =
-    https://api.github.com/repos/${owner}/${repo};
-
-    const isImage = name =>
-    /\.(jpe?g|png|webp)$/i.test(name);
+    const api = https://api.github.com/repos/${owner}/${repo};
 
     try {
+        // Use the latest blouse.html commit as the starting point.
+        const baseResponse = await fetch(
+            ${api}/commits?path=blouse.html&per_page=1
+        );
+        if (!baseResponse.ok) throw new Error("Could not find starting commit.");
 
+        const baseCommits = await baseResponse.json();
+        if (!baseCommits.length) throw new Error("Starting commit not found.");
+
+        const startTime = new Date(
+            baseCommits[0].commit.committer.date
+        ).getTime();
+
+        // Get only designs-folder commits newer than blouse.html.
         const response = await fetch(
             ${api}/commits?path=${folder}&per_page=100
         );
-
-        if (!response.ok) {
-            throw new Error("GitHub history unavailable");
-        }
+        if (!response.ok) throw new Error("Could not read designs history.");
 
         const commits = await response.json();
-        const uploaded = [];
+        const uploads = [];
 
         for (const commit of commits) {
+            const commitTime = new Date(
+                commit.commit.committer.date
+            ).getTime();
+
+            if (commitTime <= startTime) continue;
 
             const detailResponse = await fetch(
                 ${api}/commits/${commit.sha}
             );
-
             if (!detailResponse.ok) continue;
 
             const detail = await detailResponse.json();
 
-            const date =
-                detail.commit?.committer?.date ||
-                detail.commit?.author?.date;
-
-            if (!date) continue;
-
             (detail.files || []).forEach((file, index) => {
-
-                const name =
-                    file.filename.split("/").pop();
+                const path = file.filename;
+                const name = path.split("/").pop();
 
                 if (
                     file.status === "added" &&
-                    file.filename.startsWith(folder + "/") &&
-                    isImage(name)
+                    path.startsWith(folder + "/") &&
+                    !path.slice(folder.length + 1).includes("/") &&
+                    /\.(jpg|jpeg|png|webp)$/i.test(name)
                 ) {
-                    uploaded.push({
-                        path: file.filename,
-                        time: new Date(date).getTime(),
+                    uploads.push({
+                        path: path,
+                        time: commitTime,
                         index: index
                     });
                 }
-
             });
         }
 
         const seen = new Set();
-
-        const ordered = uploaded
-            .sort((a, b) =>
-                a.time - b.time || a.index - b.index
-            )
+        const ordered = uploads
+            .sort((a, b) => a.time - b.time || a.index - b.index)
             .filter(item => {
-
                 if (seen.has(item.path)) return false;
-
                 seen.add(item.path);
                 return true;
-
             });
 
-        for (
-            let i = 0;
-            i + 1 < ordered.length;
-            i += 2
-        ) {
-
+        for (let i = 0; i + 1 < ordered.length; i += 2) {
             const box = document.createElement("div");
             box.className = "design";
 
             for (let j = 0; j < 2; j++) {
-
                 const item = document.createElement("div");
                 item.className = "design-item";
 
                 const img = document.createElement("img");
-
                 img.src =
-                https://raw.githubusercontent.com/${owner}/${repo}/main/${ordered[i + j].path.split("/").map(encodeURIComponent).join("/")};
-
+                    https://raw.githubusercontent.com/${owner}/${repo}/main/ +
+                    ordered[i + j].path.split("/").map(encodeURIComponent).join("/");
                 img.alt = "";
 
                 item.appendChild(img);
                 box.appendChild(item);
-
             }
 
             document.body.appendChild(box);
-
         }
-
     } catch (error) {
-
-        console.error("Could not load designs:", error);
-
+        console.error("Design loading error:", error);
     }
-
 })();
 </script>
 
