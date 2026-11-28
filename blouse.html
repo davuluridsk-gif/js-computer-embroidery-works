@@ -4,19 +4,26 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Blouse Designs - JS Embroidery</title>
+
 <style>
 body {
   font-family: Arial, sans-serif;
   margin: 12px;
   text-align: center;
 }
+
+h2 {
+  margin-bottom: 18px;
+}
+
 #designs {
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
-  max-width: 900px;
+  max-width: 950px;
   margin: auto;
 }
+
 .design {
   display: flex;
   gap: 8px;
@@ -24,12 +31,21 @@ body {
   padding: 6px;
   border-radius: 12px;
   align-items: flex-start;
+  min-width: 0;
 }
+
 .design img {
-  width: 50%;
+  width: calc(50% - 4px);
   height: auto;
   object-fit: contain;
+  display: block;
 }
+
+.message {
+  padding: 20px;
+  color: #555;
+}
+
 @media (min-width: 600px) {
   #designs {
     grid-template-columns: repeat(2, 1fr);
@@ -37,54 +53,92 @@ body {
 }
 </style>
 </head>
+
 <body>
 
 <h2>Blouse Designs</h2>
 <div id="designs">Loading designs...</div>
 
 <script>
-const api =
+const baseAPI =
 "https://api.github.com/repos/davuluridsk-gif/js-computer-embroidery-works/contents/designs";
+
+function getImageType(filename) {
+  if (!/\.(jpg|jpeg|png|webp)$/i.test(filename)) {
+    return null;
+  }
+
+  const name = filename
+    .replace(/\.(jpg|jpeg|png|webp)$/i, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ");
+
+  if (name === "back neck" || name === "neck") {
+    return "neck";
+  }
+
+  if (name === "hand") {
+    return "hand";
+  }
+
+  return null;
+}
 
 async function loadDesigns() {
   const container = document.getElementById("designs");
 
   try {
-    const response = await fetch(api);
-    if (!response.ok) throw new Error("Designs folder not found");
+    const response = await fetch(baseAPI);
 
-    const files = await response.json();
-    const images = files.filter(file =>
-      file.type === "file" &&
-      /\.(jpg|jpeg|png|webp)$/i.test(file.name)
+    if (!response.ok) {
+      throw new Error("Unable to load designs folder");
+    }
+
+    const items = await response.json();
+
+    const folders = items.filter(item => item.type === "dir");
+
+    const results = await Promise.all(
+      folders.map(async folder => {
+        const folderAPI =
+          baseAPI + "/" + encodeURIComponent(folder.name);
+
+        const folderResponse = await fetch(folderAPI);
+
+        if (!folderResponse.ok) return null;
+
+        const files = await folderResponse.json();
+        const pair = {};
+
+        files.forEach(file => {
+          if (file.type !== "file") return;
+
+          const type = getImageType(file.name);
+
+          if (type && file.download_url) {
+            pair[type] = file.download_url;
+          }
+        });
+
+        if (!pair.neck || !pair.hand) return null;
+
+        return pair;
+      })
     );
-
-    const pairs = {};
-
-    images.forEach(file => {
-      const match = file.name.match(/^(.*)-(back-neck|hand)\.(jpg|jpeg|png|webp)$/i);
-      if (!match) return;
-
-      const id = match[1].toLowerCase();
-      const side = match[2].toLowerCase();
-
-      if (!pairs[id]) pairs[id] = {};
-      pairs[id][side] = file.download_url;
-    });
 
     container.innerHTML = "";
 
-    Object.keys(pairs).sort().forEach(id => {
-      const pair = pairs[id];
-      if (!pair["back-neck"] || !pair.hand) return;
-
+    results.filter(Boolean).forEach(pair => {
       const card = document.createElement("div");
       card.className = "design";
 
-      ["back-neck", "hand"].forEach(side => {
+      [pair.neck, pair.hand].forEach(url => {
         const img = document.createElement("img");
-        img.src = pair[side];
+        img.src = url;
         img.alt = "";
+        img.loading = "lazy";
         card.appendChild(img);
       });
 
@@ -92,11 +146,13 @@ async function loadDesigns() {
     });
 
     if (!container.children.length) {
-      container.textContent = "No complete designs uploaded yet.";
+      container.innerHTML =
+        '<div class="message">No complete designs uploaded yet.</div>';
     }
+
   } catch (error) {
-    container.textContent =
-      "Designs are not available yet. Please check the designs folder.";
+    container.innerHTML =
+      '<div class="message">Unable to load designs. Please try again later.</div>';
   }
 }
 
